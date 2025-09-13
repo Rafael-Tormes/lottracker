@@ -85,3 +85,5 @@ export function Typeahead({
     </div>
   );
 }
+
+export type TypeaheadItem = Item;
