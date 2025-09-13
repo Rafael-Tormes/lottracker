@@ -1,7 +1,18 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-export type TypeaheadItem = { id: string; label: string; meta?: string };
+type Item = { id: string; label: string; meta?: string };
+
+type LotsSearchRow = {
+  lot_id: string;
+  supplier?: string | null;
+  notes?: string | null;
+};
+
+// Shape of the API response our /api/lots/search route returns
+type LotsSearchResponse = {
+  data?: LotsSearchRow[];
+};
 
 export function Typeahead({
   placeholder,
@@ -10,25 +21,28 @@ export function Typeahead({
 }: {
   placeholder: string;
   searchPath: string; // e.g. "/api/lots/search"
-  onSelect: (item: TypeaheadItem) => void;
+  onSelect: (item: Item) => void;
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<TypeaheadItem[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const debounce = useRef<number | null>(null);
 
   useEffect(() => {
     if (debounce.current) window.clearTimeout(debounce.current);
     debounce.current = window.setTimeout(async () => {
       const url = q ? `${searchPath}?q=${encodeURIComponent(q)}` : searchPath;
-      const res = await fetch(url, { cache: "no-store" });
-      const json = await res.json();
 
-      const mapped: TypeaheadItem[] = (json.data ?? []).map((row: any) => ({
-        id: row.lot_id ?? row.id,
+      const res = await fetch(url, { cache: "no-store" });
+      const json: LotsSearchResponse = await res.json();
+
+      const rows = json.data ?? [];
+      const mapped: Item[] = rows.map((row) => ({
+        id: row.lot_id,
         label: row.supplier || row.notes || row.lot_id,
-        meta: row.notes,
+        meta: row.notes ?? undefined,
       }));
+
       setItems(mapped);
       setOpen(true);
     }, 200);
@@ -41,7 +55,7 @@ export function Typeahead({
   return (
     <div className="relative w-72">
       <input
-        className="border p-2 rounded w-full bg-white text-black placeholder-gray-500"
+        className="border p-2 rounded w-full"
         placeholder={placeholder}
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -60,7 +74,7 @@ export function Typeahead({
                 setOpen(false);
               }}
             >
-              <div className="font-medium text-gray-900">{it.label}</div>
+              <div className="font-medium">{it.label}</div>
               {it.meta && (
                 <div className="text-xs text-gray-500">{it.meta}</div>
               )}

@@ -1,26 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 
+// Next.js 15 dynamic params are Promise-based in route handlers
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { lotId: string } }
+  ctx: { params: Promise<{ lotId: string }> }
 ) {
-  const lotId = params.lotId;
+  const { lotId } = await ctx.params;
 
   const { data, error } = await supabaseServer
     .from("lots")
     .select(
-      "lot_id, supplier, date_received, cost_total, notes, batch_id, batches(batch_number)"
+      `
+      lot_id,
+      supplier,
+      date_received,
+      cost_total,
+      notes,
+      batches ( batch_number )
+    `
     )
     .eq("lot_id", lotId)
-    .maybeSingle();
+    .single();
 
-  if (error)
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data)
-    return NextResponse.json({ error: "Lot not found" }, { status: 404 });
+  if (error || !data) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
 
-  const batchNumber = (data as any).batches?.batch_number ?? null;
+  const batchNumber =
+    Array.isArray(
+      (data as unknown as { batches?: { batch_number?: string }[] }).batches
+    ) &&
+    (data as unknown as { batches: { batch_number?: string }[] }).batches[0]
+      ?.batch_number
+      ? (data as unknown as { batches: { batch_number?: string }[] }).batches[0]
+          .batch_number
+      : null;
 
   return NextResponse.json({
     lotId: data.lot_id,

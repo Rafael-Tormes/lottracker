@@ -3,27 +3,42 @@ import { supabaseServer } from "@/lib/supabaseServer";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { binId: string } }
+  ctx: { params: Promise<{ binId: string }> }
 ) {
-  const binId = params.binId;
+  const { binId } = await ctx.params;
 
   const { data, error } = await supabaseServer
     .from("bins")
     .select(
-      "bin_id, lot_id, category_id, description, estimated_qty, status, batch_id, batches(batch_number)"
+      `
+      id,
+      lot_id,
+      category_id,
+      description,
+      estimated_qty,
+      status,
+      batches ( batch_number )
+    `
     )
-    .eq("bin_id", binId)
-    .maybeSingle();
+    .eq("id", binId)
+    .single();
 
-  if (error)
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data)
-    return NextResponse.json({ error: "Bin not found" }, { status: 404 });
+  if (error || !data) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
 
-  const batchNumber = (data as any).batches?.batch_number ?? null;
+  const batchNumber =
+    Array.isArray(
+      (data as unknown as { batches?: { batch_number?: string }[] }).batches
+    ) &&
+    (data as unknown as { batches: { batch_number?: string }[] }).batches[0]
+      ?.batch_number
+      ? (data as unknown as { batches: { batch_number?: string }[] }).batches[0]
+          .batch_number
+      : null;
 
   return NextResponse.json({
-    binId: data.bin_id,
+    binId: data.id,
     lotId: data.lot_id,
     categoryId: data.category_id,
     description: data.description,
