@@ -1,49 +1,52 @@
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
+
+type BinData = {
+  binId: string;
+  lotId: string;
+  categoryId: number;
+  description: string | null;
+  estimatedQty: number | null;
+  status: string | null;
+  batchNumber?: string | null;
+};
 
 export default async function BinLabelPage({
   params,
 }: {
   params: { binId: string };
 }) {
-  // Build absolute URL
-  const host = headers().get("host");
-  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
-  const baseUrl = `${protocol}://${host}`;
-
-  const res = await fetch(`${baseUrl}/api/labels/bin/${params.binId}`, {
+  // Relative URL; no headers() needed
+  const res = await fetch(`/api/labels/bin/${params.binId}`, {
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    return notFound();
-  }
+  if (!res.ok) return notFound();
 
-  const data = await res.json();
+  const data = (await res.json()) as BinData;
 
   return (
     <div className="p-8 font-sans">
-      <h1 className="text-2xl font-bold mb-4">Bin Label</h1>
-      <div className="bg-white text-black rounded-lg p-4 w-fit space-y-2 shadow-md">
-        <p>
+      <h1 className="text-2xl font-bold mb-4 text-black">Bin Label</h1>
+      <div className="bg-gray-100 rounded-lg p-4 w-fit text-black">
+        <p className="mb-2">
           <strong>Bin ID:</strong> {data.binId}
         </p>
-        <p>
+        <p className="mb-2">
           <strong>Lot ID:</strong> {data.lotId}
         </p>
-        <p>
+        <p className="mb-2">
           <strong>Category ID:</strong> {data.categoryId}
         </p>
-        <p>
-          <strong>Description:</strong> {data.description}
+        <p className="mb-2">
+          <strong>Description:</strong> {data.description ?? ""}
         </p>
-        <p>
-          <strong>Estimated Qty:</strong> {data.estimatedQty}
+        <p className="mb-2">
+          <strong>Estimated Qty:</strong> {data.estimatedQty ?? 0}
         </p>
-        <p>
-          <strong>Status:</strong> {data.status}
+        <p className="mb-2">
+          <strong>Status:</strong> {data.status ?? ""}
         </p>
-        <p>
+        <p className="mb-2">
           <strong>Batch Number:</strong> {data.batchNumber ?? "—"}
         </p>
       </div>
