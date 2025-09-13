@@ -2,20 +2,78 @@ name: CI
 
 on:
   push:
+    branches: [main, master]
   pull_request:
 
+# Cancel older in-flight runs for the same branch/PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  ci:
+    name: Install • Lint • Typecheck • Test • Build
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run build
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- Quality gates -----------------------------------------------------
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit --pretty false
+
+      - name: ESLint
+        # If you don't have an eslint script, this still works:
+        run: |
+          if npm run -s lint >/dev/null 2>&1; then
+            npm run lint -- --max-warnings=0
+          else
+            npx eslint . --ext .ts,.tsx --max-warnings=0
+          fi
+
+      - name: Prettier (if configured)
+        if: ${{ hashFiles('**/.prettierrc*', '**/prettier.config.*') != '' }}
+        run: |
+          if npm run -s format:check >/dev/null 2>&1; then
+            npm run format:check
+          else
+            npx prettier --check .
+          fi
+
+      # --- Tests -------------------------------------------------------------
+
+      - name: Run tests (if present)
+        run: npm test --if-present -- --ci
+
+      # --- Build -------------------------------------------------------------
+
+      - name: Build Next.js
         env:
+          # Safe dummy env so build won’t leak secrets
           NEXT_PUBLIC_BASE_URL: http://localhost:3000
           NEXT_PUBLIC_SUPABASE_URL: dummy
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy
+        run: npm run build
+
+      # --- Artifacts ---------------------------------------------------------
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          if-no-files-found: ignore
+          path: |
+            .next
+            out
+            .vercel/output
