@@ -1,28 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 
+// shape we expect back from our SELECT
+type BatchRef = { batch_number: string | null };
+type BinRow = {
+  bin_id: string;
+  lot_id: string | null;
+  category_id: number | null;
+  description: string | null;
+  estimated_qty: number | null;
+  status: string | null; // enum comes back as string
+  batches?: BatchRef[] | null;
+};
+
+// public response contract
+type BinLabelResponse = {
+  binId: string;
+  lotId: string | null;
+  categoryId: number | null;
+  description: string | null;
+  estimatedQty: number | null;
+  status: string | null;
+  batchNumber: string | null;
+};
+
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ binId: string }> }
 ) {
   const supabase = getSupabaseServer();
-
   const { binId } = await ctx.params;
 
   const { data, error } = await supabase
     .from("bins")
     .select(
       `
-      id,
-      lot_id,
-      category_id,
-      description,
-      estimated_qty,
-      status,
-      batches ( batch_number )
-    `
+        bin_id,
+        lot_id,
+        category_id,
+        description,
+        estimated_qty,
+        status,
+        batches ( batch_number )
+      `
     )
-    // If your column is actually "bin_id", swap "id" -> "bin_id"
     .eq("bin_id", binId)
     .single();
 
@@ -30,23 +51,18 @@ export async function GET(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const batchNumber =
-    Array.isArray(
-      (data as unknown as { batches?: { batch_number?: string }[] }).batches
-    ) &&
-    (data as unknown as { batches: { batch_number?: string }[] }).batches[0]
-      ?.batch_number
-      ? (data as unknown as { batches: { batch_number?: string }[] }).batches[0]
-          .batch_number
-      : null;
+  const row = data as BinRow;
+  const batchNumber = row.batches?.[0]?.batch_number ?? null;
 
-  return NextResponse.json({
-    binId: (data as any).id,
-    lotId: (data as any).lot_id,
-    categoryId: (data as any).category_id,
-    description: (data as any).description,
-    estimatedQty: (data as any).estimated_qty,
-    status: (data as any).status,
+  const res: BinLabelResponse = {
+    binId: row.bin_id,
+    lotId: row.lot_id,
+    categoryId: row.category_id,
+    description: row.description,
+    estimatedQty: row.estimated_qty,
+    status: row.status,
     batchNumber,
-  });
+  };
+
+  return NextResponse.json(res);
 }
