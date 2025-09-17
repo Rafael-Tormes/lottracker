@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseServer } from "@/lib/supabaseServer";
 
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ binId: string }> }
 ) {
+  const supabase = getSupabaseServer();
+
   const { binId } = await ctx.params;
 
-  const { data, error } = await supabaseServer
+  const { data, error } = await supabase
     .from("bins")
     .select(
       `
@@ -20,7 +22,8 @@ export async function GET(
       batches ( batch_number )
     `
     )
-    .eq("id", binId)
+    // If your column is actually "bin_id", swap "id" -> "bin_id"
+    .eq("bin_id", binId)
     .single();
 
   if (error || !data) {
@@ -38,12 +41,12 @@ export async function GET(
       : null;
 
   return NextResponse.json({
-    binId: data.id,
-    lotId: data.lot_id,
-    categoryId: data.category_id,
-    description: data.description,
-    estimatedQty: data.estimated_qty,
-    status: data.status,
+    binId: (data as any).id,
+    lotId: (data as any).lot_id,
+    categoryId: (data as any).category_id,
+    description: (data as any).description,
+    estimatedQty: (data as any).estimated_qty,
+    status: (data as any).status,
     batchNumber,
   });
 }

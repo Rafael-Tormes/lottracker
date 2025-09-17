@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseServer } from "@/lib/supabaseServer";
 
 function getEventType(p: unknown): string | null {
   if (typeof p === "object" && p !== null && "type" in p) {
@@ -13,36 +13,38 @@ export async function POST(req: NextRequest) {
   try {
     const raw = await req.text();
 
-    // Parse if JSON, otherwise keep as string
+    // Try to parse JSON; otherwise keep raw string
     let payload: unknown = raw;
     try {
       payload = JSON.parse(raw);
     } catch {
-      // keep raw string in payload
+      /* keep raw string */
     }
 
     const eventType = getEventType(payload);
 
-    const { error } = await supabaseServer
+    const supabase = getSupabaseServer();
+    const { error } = await supabase
       .from("whatnot_events")
       .insert([{ event_type: eventType, payload }]);
 
     if (error) {
-      console.error("insert error:", error);
+      console.error("whatnot webhook insert error:", error);
       return NextResponse.json({ ok: false }, { status: 500 });
     }
 
-    // Respond quickly so senders don't retry
+    // Respond quickly so senders don’t retry
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error(err);
+    console.error("whatnot webhook POST error:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
 
 export async function GET() {
   try {
-    const { data, error } = await supabaseServer
+    const supabase = getSupabaseServer();
+    const { data, error } = await supabase
       .from("whatnot_events")
       .select("*")
       .order("received_at", { ascending: false })
@@ -54,6 +56,6 @@ export async function GET() {
     return NextResponse.json({ data });
   } catch (err) {
     console.error("whatnot webhook GET error:", err);
-    return NextResponse.json({ error: "server-error" }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }

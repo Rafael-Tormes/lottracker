@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseServer } from "@/lib/supabaseServer";
 
 export async function POST(req: NextRequest) {
+  const supabase = getSupabaseServer();
+
   const { lotId, binId, batchId } = await req.json();
 
   if (!batchId || (!lotId && !binId)) {
@@ -12,20 +14,24 @@ export async function POST(req: NextRequest) {
   }
 
   if (lotId) {
-    const { error } = await supabaseServer
+    const { error } = await supabase
       .from("lots")
       .update({ batch_id: batchId })
-      .eq("lot_id", lotId); // <-- fixed here
-    if (error)
+      .eq("lot_id", lotId);
+    if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
+
   if (binId) {
-    const { error } = await supabaseServer
+    // NOTE: if your PK column is actually "id" for bins, change this eq() to .eq("id", binId)
+    const { error } = await supabase
       .from("bins")
       .update({ batch_id: batchId })
-      .eq("bin_id", binId); // <-- double-check bins column too
-    if (error)
+      .eq("bin_id", binId);
+    if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });

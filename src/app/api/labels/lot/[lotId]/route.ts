@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseServer } from "@/lib/supabaseServer";
 
-// Next.js 15 dynamic params are Promise-based in route handlers
+// Next.js 15 route handlers: params is a Promise
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ lotId: string }> }
 ) {
+  const supabase = getSupabaseServer();
+
   const { lotId } = await ctx.params;
 
-  const { data, error } = await supabaseServer
+  const { data, error } = await supabase
     .from("lots")
     .select(
       `
@@ -38,11 +40,11 @@ export async function GET(
       : null;
 
   return NextResponse.json({
-    lotId: data.lot_id,
-    supplier: data.supplier,
-    dateReceived: data.date_received,
-    costTotal: data.cost_total,
-    notes: data.notes,
+    lotId: (data as any).lot_id,
+    supplier: (data as any).supplier,
+    dateReceived: (data as any).date_received,
+    costTotal: (data as any).cost_total,
+    notes: (data as any).notes,
     batchNumber,
   });
 }
