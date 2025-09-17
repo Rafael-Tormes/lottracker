@@ -53,6 +53,7 @@ export async function GET() {
     }
     return NextResponse.json({ data });
   } catch (err) {
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    console.error("whatnot webhook GET error:", err);
+    return NextResponse.json({ error: "server-error" }, { status: 500 });
   }
 }
