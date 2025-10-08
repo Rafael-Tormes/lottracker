@@ -22,20 +22,16 @@ export async function GET(req: NextRequest) {
       if (uuidRegex.test(q)) {
         query = query.eq("lot_id", q);
       } else {
-        // ilike needs wildcards; use or=(...)
         query = query.or(`supplier.ilike.*${q}*,notes.ilike.*${q}*`);
       }
     }
 
     const { data, error } = await query;
-
-    if (error) {
+    if (error)
       return NextResponse.json(
         { error: error.message, data: [] },
         { status: 500 }
       );
-    }
-
     return NextResponse.json({ data: data ?? [] });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

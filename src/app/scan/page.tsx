@@ -2,43 +2,63 @@
 
 import { useState } from "react";
 
-export default function ScanPage() {
-  const [code, setCode] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+export default function ScanDemo() {
+  const [barcode, setBarcode] = useState("");
+  const [result, setResult] = useState<any>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!code.trim()) return;
-
-    // For now we just echo. Later we’ll call /api/scan with this code.
-    setStatus(`Scanned: ${code}`);
-    setCode("");
+  async function lookup() {
+    setLoading(true);
+    setErr(null);
+    setResult(null);
+    try {
+      const r = await fetch(
+        `/api/items/by-barcode?barcode=${encodeURIComponent(barcode)}`,
+        { cache: "no-store" }
+      );
+      const text = await r.text();
+      const json = text ? JSON.parse(text) : {};
+      if (!r.ok) throw new Error(json.error || r.statusText);
+      setResult(json.data);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="p-6 font-sans text-gray-800 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Scan</h1>
-
-      <form onSubmit={submit} className="flex gap-2 items-center">
+    <main style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 640 }}>
+      <h1>Scan Demo</h1>
+      <div style={{ display: "flex", gap: 8 }}>
         <input
-          className="border p-2 rounded w-80 text-gray-900"
-          placeholder="Scan or type a barcode..."
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          autoFocus
+          value={barcode}
+          onChange={(e) => setBarcode(e.target.value)}
+          placeholder="Scan or type barcode…"
+          style={{ flex: 1, padding: 8 }}
         />
-        <button className="px-4 py-2 rounded bg-black text-white hover:bg-gray-800">
-          Submit
+        <button
+          onClick={lookup}
+          disabled={!barcode || loading}
+          style={{ padding: "8px 12px" }}
+        >
+          {loading ? "Looking…" : "Lookup"}
         </button>
-      </form>
-
-      {status && <div className="text-sm text-gray-900">{status}</div>}
-
-      <p className="text-sm text-gray-700">
-        This is the UI screen at <code>/scan</code>. We’ll wire it to the API (
-        <code>/api/scan</code>) when we decide what a scan should do (e.g.,
-        lookup a lot/bin, create a bin, attach to a batch, etc.).
-      </p>
-    </div>
+      </div>
+      {err && <p style={{ color: "crimson", marginTop: 12 }}>Error: {err}</p>}
+      {result && (
+        <pre
+          style={{
+            marginTop: 12,
+            background: "#f5f5f5",
+            padding: 12,
+            borderRadius: 8,
+          }}
+        >
+          {JSON.stringify(result, null, 2)}
+        </pre>
+      )}
+    </main>
   );
 }
